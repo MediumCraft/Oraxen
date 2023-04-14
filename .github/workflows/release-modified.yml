@@ -1,3 +1,5 @@
+name: Building
+
 on:
   #pull_request:
     #types: [closed]
@@ -33,20 +35,20 @@ jobs:
         id: plugin_version
         shell: bash
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
-            echo "version=${{ inputs.version }}" >> $GITHUB_ENV
-          else
+            version=$INPUT_VERSION
+            if [ -z "$version" ]; then
             version=$(grep "^pluginVersion=" gradle.properties | cut -d'=' -f2)
-            echo "version=${{ version }}" >> $GITHUB_ENV
-          fi
+            fi
+            echo "version=$version" >> $GITHUB_ENV
         env:
-          inputs.version: ${{ github.event.inputs.version }}
+            INPUT_VERSION: ${{ github.event.inputs.version }}
+
       
       - name: Set short commit SHA
         id: short_sha
         run: |
-          if [ -n "${{ github.event.inputs.commit_id }}" ]; then
-            echo "sha_short=${{ github.event.inputs.commit_id }}" >> $GITHUB_ENV
+          if [ -n "${{ github.event.inputs.commit }}" ]; then
+            echo "sha_short=${{ github.event.inputs.commit }}" >> $GITHUB_ENV
           else
             echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           fi
