@@ -80,7 +80,7 @@ jobs:
           token: ${{ secrets.RELEASE_KEY }}
           files: |
             build/libs/*.jar
-          tag_name: v${{ steps.plugin_version.outputs.version }}-${{ steps.short_sha.outputs.sha_short }}
+          tag_name: commit-${{ steps.short_sha.outputs.sha_short }}
           name: Oraxen v${{ steps.plugin_version.outputs.version }}
           body: |
             Commit ${{ steps.short_sha.outputs.sha_short }}
