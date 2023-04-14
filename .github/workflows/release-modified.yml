@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           version=$(grep "^pluginVersion=" gradle.properties | cut -d'=' -f2)
-          echo "::set-output name=version::$version"
+          echo "version=$version" >> $GITHUB_OUTPUT
       
       - name: Set outputs
         id: short_sha
