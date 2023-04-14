@@ -21,7 +21,7 @@ permissions:
   contents: write
 
 jobs:
-  create-release:
+  release:
     runs-on: ubuntu-latest
     #if: >-
       #(contains(github.event.pull_request.labels.*.name, 'release'))
