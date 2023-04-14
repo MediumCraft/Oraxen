@@ -9,13 +9,6 @@ on:
     branches:
       - 'master'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version'
-        required: false
-      commit:
-        description: 'Commit ID'
-        required: false
 
 permissions:
   contents: write
@@ -32,27 +25,16 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       
-      - name: Get Plugin Version
+      - name: Get plugin version
         id: plugin_version
         shell: bash
         run: |
-            version=$INPUT_VERSION
-            if [ -z "$version" ]; then
-            version=$(grep "^pluginVersion=" gradle.properties | cut -d'=' -f2)
-            fi
-            echo "version=$version" >> $GITHUB_ENV
-        env:
-            INPUT_VERSION: ${{ github.event.inputs.version }}
-
+          version=$(grep "^pluginVersion=" gradle.properties | cut -d'=' -f2)
+          echo "version=${{ version }}"
       
-      - name: Set short commit SHA
+      - name: Set outputs
         id: short_sha
-        run: |
-          if [ -n "${{ github.event.inputs.commit }}" ]; then
-            echo "sha_short=${{ github.event.inputs.commit }}" >> $GITHUB_ENV
-          else
-            echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          fi
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       
       - name: Setup Java
         uses: actions/setup-java@v3
@@ -80,7 +62,7 @@ jobs:
           token: ${{ secrets.RELEASE_KEY }}
           files: |
             build/libs/*.jar
-          tag_name: v${{ steps.plugin_version.outputs.version }}
+          tag_name: v${{ steps.plugin_version.outputs.version }}-${{ steps.short_sha.outputs.sha_short }}
           name: Oraxen v${{ steps.plugin_version.outputs.version }}
           body: |
             Commit ${{ steps.short_sha.outputs.sha_short }}
