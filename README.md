@@ -55,3 +55,9 @@ will not try to prevent you from downloading the source code and rebuilding it, 
 whether it is modified or intact and compiled or whether it is the source code, partial or complete). Public forks are
 allowed as long as you comply with the license (in order to propose a pull request). Buying a license will not only save
 you time, I will do my best to help you if you have any concerns and it will show me that you appreciate my work.
+
+## Polymath
+Oraxen will automatically upload your resource pack to Polymath, but if you wanted to self host it, here are some instructions.
+[Original Instructions with Source Code](https://github.com/oraxen/polymath)
+But it contained a little bit of issue while I am installing it, so I have a slightly modified version of Polymath
+[Beta instructions](https://github.com/MediumCraft/Polymath)
