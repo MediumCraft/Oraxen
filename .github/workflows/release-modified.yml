@@ -1,0 +1,81 @@
+name: Build & Release
+# For development purposes
+
+on:
+  #pull_request:
+    #types: [closed]
+    #branches: [master]
+  push:
+    branches:
+      - 'master'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    #if: >-
+      #(contains(github.event.pull_request.labels.*.name, 'release'))
+     # && github.event.pull_request.merged == true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      
+      - name: Get plugin version
+        id: plugin_version
+        shell: bash
+        run: |
+          version=$(grep "^pluginVersion=" gradle.properties | cut -d'=' -f2)
+          echo "version=$version" >> $GITHUB_OUTPUT
+      
+      - name: Set outputs
+        id: short_sha
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: 'gradle'
+      
+      - name: Grant Runners Execute Permission
+        run: chmod +x gradlew
+        
+      - name: Build with Gradle
+        run: ./gradlew build
+        continue-on-error: true
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Oraxen-v${{ steps.plugin_version.outputs.version }}
+          path: build/libs/*.jar
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.RELEASE_KEY }}
+          files: |
+            build/libs/*.jar
+          tag_name: v${{ steps.plugin_version.outputs.version }}-${{ steps.short_sha.outputs.sha_short }}
+          name: Oraxen v${{ steps.plugin_version.outputs.version }}
+          body: |
+            Commit ${{ steps.short_sha.outputs.sha_short }}
+            Oraxen Version ${{ steps.plugin_version.outputs.version }}
+          generate_release_notes: true
+        env:
+          GITHUB_REPOSITORY: MediumCraft/Oraxen
+      
+      # Use way better stuff
+      #- name: Create GitHub Release
+        #uses: marvinpinto/action-automatic-releases@latest
+        #with:
+          #repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          #prerelease: false
+          #automatic_release_tag: ${{ steps.plugin_version.outputs.version }}
+          #title: ${{ steps.plugin_version.outputs.version }}
