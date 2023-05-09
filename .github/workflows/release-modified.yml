@@ -68,6 +68,9 @@ jobs:
             Commit ${{ steps.short_sha.outputs.sha_short }}
             Oraxen Version ${{ steps.plugin_version.outputs.version }}
           generate_release_notes: true
+          
+          # Use prerelease instead
+          prerelease: true
         env:
           GITHUB_REPOSITORY: MediumCraft/Oraxen
       
