@@ -1,5 +1,7 @@
 package io.th0rgal.oraxen.api;
 
+import io.th0rgal.oraxen.items.ItemUpdater;
+import io.th0rgal.oraxen.OraxenPlugin;
 import io.th0rgal.oraxen.mechanics.provided.gameplay.furniture.BlockLocation;
 import io.th0rgal.oraxen.mechanics.provided.gameplay.furniture.FurnitureFactory;
 import io.th0rgal.oraxen.mechanics.provided.gameplay.furniture.FurnitureMechanic;
@@ -11,6 +13,7 @@ import org.bukkit.Rotation;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
@@ -46,48 +49,10 @@ public class OraxenFurniture {
         return getFurnitureMechanic(entity) != null;
     }
 
-    /**
-     * Places Furniture from a given ID at a given location, optionally by a player
-     *
-     * @param location The location to place the Furniture
-     * @param itemID   The ID of the Furniture to place
-     * @param rotation The rotation of the Furniture
-     * @param blockFace The blockFace to place the Furniture against
-     * @param player   The player who places the Furniture, can be null
-     * @return true if the Furniture was placed, false otherwise
-     */
-    @Deprecated(forRemoval = true, since = "1.154.0")
-    public static boolean place(Location location, String itemID, Rotation rotation, BlockFace blockFace, @Nullable Player player) {
-        FurnitureMechanic mechanic = (FurnitureMechanic) FurnitureFactory.getInstance().getMechanic(itemID);
-        if (mechanic == null) return false;
-        return mechanic.place(rotation, FurnitureMechanic.rotationToYaw(rotation), blockFace, location) != null;
-    }
-
     public static boolean place(Location location, String itemID, Rotation rotation, BlockFace blockFace) {
         FurnitureMechanic mechanic = (FurnitureMechanic) FurnitureFactory.getInstance().getMechanic(itemID);
         if (mechanic == null) return false;
-        return mechanic.place(location, FurnitureMechanic.rotationToYaw(rotation), rotation, blockFace) != null;
-    }
-
-    /**
-     * Places Furniture from a given ID at a given location, optionally by a player
-     *
-     * @param location The location to place the Furniture
-     * @param itemID   The ID of the Furniture to place
-     * @param player   The player who places the Furniture, can be null
-     * @return true if the Furniture was placed, false otherwise
-     */
-    @Deprecated(forRemoval = true, since = "1.154.0")
-    public static boolean place(Location location, String itemID, @Nullable Player player) {
-        FurnitureMechanic mechanic = (FurnitureMechanic) FurnitureFactory.getInstance().getMechanic(itemID);
-        if (mechanic == null) return false;
-        return mechanic.place(location) != null;
-    }
-
-    public static boolean place(Location location, String itemID) {
-        FurnitureMechanic mechanic = (FurnitureMechanic) FurnitureFactory.getInstance().getMechanic(itemID);
-        if (mechanic == null) return false;
-        return mechanic.place(location) != null;
+        return mechanic.place(location, FurnitureMechanic.rotationToYaw(rotation), blockFace) != null;
     }
 
     /**
@@ -113,7 +78,7 @@ public class OraxenFurniture {
         if (mechanic.hasBarriers())
             for (Block barrier : mechanic.getBarriers().stream().map(blockLoc -> blockLoc.toLocation(baseEntity.getWorld()).getBlock()).collect(Collectors.toSet()))
                 if (block.getType() == Material.BARRIER) mechanic.removeSolid(barrier);
-        else mechanic.removeAirFurniture(baseEntity);
+                else mechanic.removeAirFurniture(baseEntity);
         return true;
     }
 
@@ -126,7 +91,10 @@ public class OraxenFurniture {
      */
     public static boolean remove(Entity baseEntity, @Nullable Player player) {
         FurnitureMechanic mechanic = getFurnitureMechanic(baseEntity);
-        if (mechanic == null || baseEntity.getType() != mechanic.getFurnitureEntityType()) return false;
+        if (mechanic == null) return false;
+        // Return if entity is interaction. Otherwise, remove it based on mechanic
+        // Allows for changing the FurnitureType in config and still remove old entities
+        if (OraxenPlugin.supportsDisplayEntities && baseEntity.getType() == EntityType.INTERACTION) return false;
         ItemStack itemStack = player != null ? player.getInventory().getItemInMainHand() : new ItemStack(Material.AIR);
 
         if (player != null && player.getGameMode() != GameMode.CREATIVE)
@@ -173,5 +141,19 @@ public class OraxenFurniture {
     public static FurnitureMechanic getFurnitureMechanic(String itemID) {
         if (!OraxenItems.exists(itemID)) return null;
         return (FurnitureMechanic) FurnitureFactory.getInstance().getMechanic(itemID);
+    }
+
+    /**
+     * Ensures that the given entity is a Furniture, and updates its item if it is
+     * @param entity
+     */
+    public static void updateFurniture(Entity entity) {
+        if (!OraxenFurniture.isFurniture(entity)) return;
+        entity = OraxenFurniture.getFurnitureMechanic(entity).getBaseEntity(entity);
+        if (entity == null) return;
+        ItemStack oldItem = FurnitureMechanic.getFurnitureItem(entity);
+        ItemStack newItem = ItemUpdater.updateItem(oldItem);
+        if (oldItem == null || oldItem.equals(newItem)) return;
+        FurnitureMechanic.setFurnitureItem(entity, newItem);
     }
 }

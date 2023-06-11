@@ -16,6 +16,7 @@ import io.th0rgal.oraxen.sound.CustomSound;
 import io.th0rgal.oraxen.sound.SoundManager;
 import io.th0rgal.oraxen.utils.*;
 import io.th0rgal.oraxen.utils.logs.Logs;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -98,7 +99,6 @@ public class ResourcePack {
         // Sorting items to keep only one with models (and generate it if needed)
         generatePredicates(extractTexturedItems());
         generateFont(fontManager);
-        generateSound(soundManager);
         if (Settings.GESTURES_ENABLED.toBool()) generateGestureFiles();
         if (Settings.HIDE_SCOREBOARD_NUMBERS.toBool()) generateScoreboardFiles();
 
@@ -144,12 +144,11 @@ public class ResourcePack {
 
         if (Settings.GENERATE_ATLAS_FILE.toBool())
             AtlasGenerator.generateAtlasFile(output, malformedTextures);
-        if (!Settings.MERGE_DUPLICATES.toBool()) {
-            if (Settings.MERGE_FONTS.toBool())
-                DuplicationHandler.mergeFontFiles(output);
-            if (Settings.MERGE_ITEM_MODELS.toBool())
-                DuplicationHandler.mergeBaseItemFiles(output);
-        }
+
+        if (Settings.MERGE_DUPLICATE_FONTS.toBool())
+            DuplicationHandler.mergeFontFiles(output);
+        if (Settings.MERGE_ITEM_MODELS.toBool())
+            DuplicationHandler.mergeBaseItemFiles(output);
 
         List<String> excludedExtensions = Settings.EXCLUDED_FILE_EXTENSIONS.toStringList();
         excludedExtensions.removeIf(f -> f.equals("png") || f.equals("json"));
@@ -160,6 +159,8 @@ public class ResourcePack {
                     if (virtual.getPath().endsWith(extension)) newOutput.add(virtual);
             output.removeAll(newOutput);
         }
+
+        generateSound(soundManager, output);
 
         ZipUtils.writeZipFile(pack, output);
     }
@@ -218,11 +219,11 @@ public class ResourcePack {
                         String jsonTexture = element.getAsString();
                         if (!texturePaths.contains(modelPathToPackPath(jsonTexture))) {
                             if (!jsonTexture.startsWith("#") && !jsonTexture.startsWith("item/") && !jsonTexture.startsWith("block/")) {
-                                try {
-                                    Material.valueOf(Utils.getFileNameOnly(jsonTexture).toUpperCase());
-                                } catch (IllegalArgumentException e) {
+                                Material material = Material.matchMaterial(Utils.getFileNameOnly(jsonTexture).toUpperCase());
+                                if (material == null) {
                                     Logs.logWarning("Found invalid texture-path inside model-file <blue>" + model.getPath() + "</blue>: " + jsonTexture);
-                                    Logs.logError("Texture-paths cannot contain spaces or Capital Letters");
+                                    Logs.logWarning("Verify that you have a texture in said path.");
+                                    Logs.newline();
                                     malformedModels.add(model);
                                 }
                             }
@@ -267,7 +268,7 @@ public class ResourcePack {
         if (!malformedTextures.isEmpty() || !malformedModels.isEmpty()) {
             Logs.logError("Pack contains malformed texture(s) and/or model(s)");
             Logs.logError("These need to be fixed, otherwise the resourcepack will be broken");
-        } else Logs.logSuccess("No broken models or textures were found");
+        } else Logs.logSuccess("No broken models or textures were found in the resourcepack");
         Logs.newline();
 
         Set<String> malformedFiles = malformedTextures.stream().map(VirtualFile::getPath).collect(Collectors.toSet());
@@ -421,14 +422,29 @@ public class ResourcePack {
         writeStringToVirtual("assets/minecraft/font", "default.json", output.toString());
     }
 
-    private void generateSound(final SoundManager soundManager) {
-        if (!soundManager.isAutoGenerate())
-            return;
-        final JsonObject output = new JsonObject();
+    private void generateSound(final SoundManager soundManager, List<VirtualFile> output) {
+        if (!soundManager.isAutoGenerate()) return;
+
+        VirtualFile soundFile = output.stream().filter(file -> file.getPath().equals("assets/minecraft/sounds.json")).findFirst().orElse(null);
+        JsonObject outputJson = new JsonObject();
+
+        // If file was imported by other means, we attempt to merge in sound.yml entries
+        if (soundFile != null) {
+            try {
+                JsonElement soundElement = JsonParser.parseString(IOUtils.toString(soundFile.getInputStream(), StandardCharsets.UTF_8));
+                if (soundElement != null && soundElement.isJsonObject())
+                    outputJson = soundElement.getAsJsonObject();
+            } catch (IOException e) {
+                e.printStackTrace();
+                return;
+            }
+        }
 
         for (CustomSound sound : handleCustomSoundEntries(soundManager.getCustomSounds()))
-            output.add(sound.getName(), sound.toJson());
-        writeStringToVirtual("assets/minecraft", "sounds.json", output.toString());
+            outputJson.add(sound.getName(), sound.toJson());
+
+        output.remove(soundFile);
+        writeStringToVirtual("assets/minecraft", "sounds.json", outputJson.toString());
     }
 
     private void generateGestureFiles() {
@@ -536,12 +552,21 @@ public class ResourcePack {
             return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
         }
 
+        return processJson(content);
+    }
+
+    private InputStream processJson(String content) {
+        InputStream newStream;
         // Deserialize said component to a string to handle other tags like glyphs
-        content = AdventureUtils.parseMiniMessage(AdventureUtils.parseLegacy(content), AdventureUtils.tagResolver("prefix", Message.PREFIX.toString()));
+        String parsedContent = AdventureUtils.parseMiniMessage(AdventureUtils.parseLegacy(content), AdventureUtils.tagResolver("prefix", Message.PREFIX.toString()));
         // Deserialize adventure component to legacy format due to resourcepacks not supporting adventure components
-        content = AdventureUtils.parseLegacyThroughMiniMessage(content);
-        newStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
-        newStream.close();
+        parsedContent = AdventureUtils.parseLegacyThroughMiniMessage(content);
+        newStream = new ByteArrayInputStream(parsedContent.getBytes(StandardCharsets.UTF_8));
+        try {
+            newStream.close();
+        } catch (IOException e) {
+            return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+        }
         return newStream;
     }
 
@@ -596,25 +621,38 @@ public class ResourcePack {
                 langJson.add(entry.getKey(), entry.getValue());
             }
 
-            InputStream langStream = new ByteArrayInputStream(langJson.toString().getBytes(StandardCharsets.UTF_8));
+            InputStream langStream = processJson(langJson.toString());
             virtualLangFiles.add(new VirtualFile("assets/minecraft/lang", lang + ".json", langStream));
         }
         // Remove previous langfiles as these have been migrated in above
-        output.removeIf(virtualFile -> virtualFile.getPath().startsWith("assets/minecraft/lang"));
+        output.removeIf(virtualFile -> virtualLangFiles.stream().anyMatch(v -> v.getPath().equals(virtualFile.getPath())));
         output.addAll(virtualLangFiles);
     }
 
-    private static final Set<String> availableLanguageCodes = new HashSet<>(Arrays.asList("af_za", "ar_sa", "ast_es", "az_az",
-            "be_by", "bg_bg", "br_fr", "ca_es", "cs_cz", "cy_gb", "da_dk", "de_at", "de_ch",
-            "de_de", "el_gr", "en_au", "en_ca", "en_gb", "en_nz", "en_pt", "en_ud", "en_us",
-            "eo_uy", "es_ar", "es_es", "es_mx", "es_uy", "es_ve", "et_ee", "eu_es", "fa_ir",
-            "fi_fi", "fil_ph", "fo_fo", "fr_ca", "fr_fr", "fy_nl", "ga_ie", "gd_gb", "gl_es"));
+    private static final Set<String> availableLanguageCodes = new HashSet<>(Arrays.asList(
+            "af_za", "ar_sa", "ast_es", "az_az", "ba_ru",
+            "bar", "be_by", "bg_bg", "br_fr", "brb", "bs_ba", "ca_es", "cs_cz",
+            "cy_gb", "da_dk", "de_at", "de_ch", "de_de", "el_gr", "en_au", "en_ca",
+            "en_gb", "en_nz", "en_pt", "en_ud", "en_us", "enp", "enws", "eo_uy",
+            "es_ar", "es_cl", "es_ec", "es_es", "es_mx", "es_uy", "es_ve", "esan",
+            "et_ee", "eu_es", "fa_ir", "fi_fi", "fil_ph", "fo_fo", "fr_ca", "fr_fr",
+            "fra_de", "fur_it", "fy_nl", "ga_ie", "gd_gb", "gl_es", "haw_us", "he_il",
+            "hi_in", "hr_hr", "hu_hu", "hy_am", "id_id", "ig_ng", "io_en", "is_is",
+            "isv", "it_it", "ja_jp", "jbo_en", "ka_ge", "kk_kz", "kn_in", "ko_kr",
+            "ksh", "kw_gb", "la_la", "lb_lu", "li_li", "lmo", "lol_us", "lt_lt",
+            "lv_lv", "lzh", "mk_mk", "mn_mn", "ms_my", "mt_mt", "nah", "nds_de",
+            "nl_be", "nl_nl", "nn_no", "no_no", "oc_fr", "ovd", "pl_pl", "pt_br",
+            "pt_pt", "qya_aa", "ro_ro", "rpr", "ru_ru", "ry_ua", "se_no", "sk_sk",
+            "sl_si", "so_so", "sq_al", "sr_sp", "sv_se", "sxu", "szl", "ta_in",
+            "th_th", "tl_ph", "tlh_aa", "tok", "tr_tr", "tt_ru", "uk_ua", "val_es",
+            "vec_it", "vi_vn", "yi_de", "yo_ng", "zh_cn", "zh_hk", "zh_tw", "zlm_arab"));
 
     private void generateScoreboardFiles() {
         Map<String, String> scoreboardShaderFiles = Map.of("assets/minecraft/shaders/core/rendertype_text.json", getScoreboardJson(), "assets/minecraft/shaders/core/rendertype_text.vsh", getScoreboardVsh());
         for (Map.Entry<String, String> entry : scoreboardShaderFiles.entrySet())
             writeStringToVirtual(StringUtils.removeEnd(Utils.getParentDirs(entry.getKey()), "/"), Utils.removeParentDirs(entry.getKey()), entry.getValue());
     }
+
     private String getScoreboardVsh() {
         return """
                 #version 150
@@ -655,6 +693,7 @@ public class ResourcePack {
                 }
                 """;
     }
+
     private String getScoreboardJson() {
         return """
                 {
