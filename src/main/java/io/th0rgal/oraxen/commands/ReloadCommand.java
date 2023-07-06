@@ -87,6 +87,11 @@ public class ReloadCommand {
         OraxenPlugin.get().getGesturesManager().reload();
     }
 
+    private static void reloadRecipes(CommandSender sender) {
+        Message.RELOAD.send(sender, AdventureUtils.tagResolver("reloaded", "recipes"));
+        RecipesManager.reload();
+    }
+
     public CommandAPICommand getReloadCommand() {
         return new CommandAPICommand("reload")
                 .withAliases("rl")
@@ -101,24 +106,23 @@ public class ReloadCommand {
                             OraxenPlugin.get().getInvManager().regen();
                         }
                         case "PACK" -> reloadPack(sender);
-                        case "RECIPES" -> RecipesManager.reload();
+                        case "RECIPES" -> reloadRecipes(sender);
                         case "CONFIGS" -> OraxenPlugin.get().reloadConfigs();
                         default -> {
-                            OraxenPlugin oraxen = OraxenPlugin.get();
                             MechanicsManager.unloadListeners();
                             MechanicsManager.registerNativeMechanics();
                             OraxenPlugin.get().reloadConfigs();
                             reloadItems(sender);
                             reloadPack(sender);
                             reloadHud(sender);
-                            RecipesManager.reload();
+                            reloadRecipes(sender);
                             OraxenPlugin.get().getInvManager().regen();
                         }
                     }
                     // This does not clear the tablist, and I am not sure how to do it otherwise
                     FontManager manager = new FontManager(OraxenPlugin.get().getConfigsManager());
                     for (Player player : Bukkit.getOnlinePlayers()) {
-                        manager.sendGlyphTabCompletion(player, false);
+                        manager.sendGlyphTabCompletion(player);
                     }
                 });
     }

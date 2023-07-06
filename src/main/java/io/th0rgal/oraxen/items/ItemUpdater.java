@@ -22,14 +22,14 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.inventory.meta.Damageable;
-import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.*;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static io.th0rgal.oraxen.items.ItemBuilder.ORIGINAL_NAME_KEY;
@@ -121,10 +121,14 @@ public class ItemUpdater implements Listener {
         String id = OraxenItems.getIdByItem(oldItem);
         if (id == null) return oldItem;
 
-        Optional<ItemBuilder> newItemBuilder = OraxenItems.getOptionalItemById(id);
+        // Oraxens Inventory adds a dumb PDC entry to items, this will remove them
+        // Done here over [ItemsView] as this method is called anyway and supports old items
+        NamespacedKey guiItemKey = Objects.requireNonNull(NamespacedKey.fromString("oraxen:if-uuid"));
+        Utils.editItemMeta(oldItem, itemMeta -> itemMeta.getPersistentDataContainer().remove(guiItemKey));
 
-        if (newItemBuilder.isEmpty() || newItemBuilder.get().getOraxenMeta().isNoUpdate())
-            return oldItem;
+        Optional<ItemBuilder> newItemBuilder = OraxenItems.getOptionalItemById(id);
+        if (newItemBuilder.isEmpty() || newItemBuilder.get().getOraxenMeta().isNoUpdate()) return oldItem;
+
         ItemStack newItem = newItemBuilder.get().build();
         newItem.setAmount(oldItem.getAmount());
         Utils.editItemMeta(newItem, itemMeta -> {
@@ -152,13 +156,27 @@ public class ItemUpdater implements Listener {
 
             // Lore might be changable ingame, but I think it is safe to just set it to new
             if (Settings.OVERRIDE_LORE.toBool()) itemMeta.setLore(newMeta.getLore());
+            else itemMeta.setLore(oldMeta.getLore());
 
             // Attribute modifiers are only changable via config so no reason to check old
             itemMeta.setAttributeModifiers(newMeta.getAttributeModifiers());
 
             // Transfer over durability from old item
-            if (itemMeta instanceof Damageable damageable && oldMeta instanceof Damageable oldDmg)
+            if (itemMeta instanceof Damageable damageable && oldMeta instanceof Damageable oldDmg) {
                 damageable.setDamage(oldDmg.getDamage());
+            }
+
+            if (itemMeta instanceof LeatherArmorMeta leatherMeta && oldMeta instanceof LeatherArmorMeta oldLeatherMeta) {
+                leatherMeta.setColor(oldLeatherMeta.getColor());
+            }
+
+            if (itemMeta instanceof PotionMeta potionMeta && oldMeta instanceof PotionMeta oldPotionMeta) {
+                potionMeta.setColor(oldPotionMeta.getColor());
+            }
+
+            if (itemMeta instanceof MapMeta mapMeta && oldMeta instanceof MapMeta oldMapMeta) {
+                mapMeta.setColor(oldMapMeta.getColor());
+            }
 
             // Parsing with legacy here to fix any inconsistensies caused by server serializers etc
             String oldDisplayName = AdventureUtils.parseLegacy(oldMeta.getDisplayName());

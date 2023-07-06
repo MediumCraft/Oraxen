@@ -7,14 +7,14 @@ import io.th0rgal.oraxen.api.OraxenItems;
 import io.th0rgal.oraxen.api.events.OraxenNoteBlockInteractEvent;
 import io.th0rgal.oraxen.api.events.OraxenNoteBlockPlaceEvent;
 import io.th0rgal.oraxen.mechanics.MechanicFactory;
+import io.th0rgal.oraxen.mechanics.provided.gameplay.limitedplacing.LimitedPlacing;
 import io.th0rgal.oraxen.mechanics.provided.gameplay.noteblock.directional.DirectionalBlock;
-import io.th0rgal.oraxen.mechanics.provided.misc.storage.StorageMechanic;
+import io.th0rgal.oraxen.mechanics.provided.gameplay.storage.StorageMechanic;
 import io.th0rgal.oraxen.utils.BlockHelpers;
 import io.th0rgal.oraxen.utils.Utils;
 import io.th0rgal.oraxen.utils.VersionUtil;
 import io.th0rgal.oraxen.utils.breaker.BreakerSystem;
 import io.th0rgal.oraxen.utils.breaker.HardnessModifier;
-import io.th0rgal.oraxen.utils.limitedplacing.LimitedPlacing;
 import io.th0rgal.protectionlib.ProtectionLib;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -100,7 +100,14 @@ public class NoteBlockMechanicListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPhysics(final BlockPhysicsEvent event) {
         final Block aboveBlock = event.getBlock().getRelative(BlockFace.UP);
-        if (aboveBlock.getType() == Material.NOTE_BLOCK) {
+        final Block belowBlock = event.getBlock().getRelative(BlockFace.DOWN);
+        // If block below is NoteBlock, it will be affected by the break
+        // Call updateAndCheck from it to fix vertical stack of NoteBlocks
+        // if belowBlock is not a NoteBlock we must ensure the above is not, if it is call updateAndCheck from block
+        if (belowBlock.getType() == Material.NOTE_BLOCK) {
+            updateAndCheck(belowBlock.getLocation());
+            event.setCancelled(true);
+        } else if (aboveBlock.getType() == Material.NOTE_BLOCK) {
             updateAndCheck(event.getBlock().getLocation());
             event.setCancelled(true);
         }
@@ -445,7 +452,7 @@ public class NoteBlockMechanicListener implements Listener {
                 if (mechanic.isDirectional() && !mechanic.getDirectional().isParentBlock())
                     mechanic = mechanic.getDirectional().getParentMechanic();
 
-                return mechanic.hasHardness;
+                return mechanic.hasHardness();
             }
 
             @Override
@@ -460,7 +467,7 @@ public class NoteBlockMechanicListener implements Listener {
                 if (mechanic.isDirectional() && !mechanic.getDirectional().isParentBlock())
                     mechanic = mechanic.getDirectional().getParentMechanic();
 
-                final long period = mechanic.getPeriod();
+                final long period = mechanic.getHardness();
                 double modifier = 1;
                 if (mechanic.getDrop().canDrop(tool)) {
                     modifier *= 0.4;
