@@ -135,7 +135,7 @@ public class Utils {
     }
 
     public static char firstEmpty(Map<String, Character> map, int min) {
-        List<Integer> newMap = map.values().stream().map(c -> (int) c).toList();
+        List<Integer> newMap = map.values().stream().map(c -> (int) c).sorted().toList();
         while (newMap.contains(min)) min++;
         return (char) min;
     }
@@ -152,6 +152,7 @@ public class Utils {
      */
     public static ItemStack editItemMeta(ItemStack itemStack, Consumer<ItemMeta> function) {
         ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return itemStack;
         function.accept(meta);
         itemStack.setItemMeta(meta);
         return itemStack;

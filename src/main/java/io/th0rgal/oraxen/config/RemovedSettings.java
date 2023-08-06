@@ -13,6 +13,10 @@ public enum RemovedSettings {
     AUTOMATICALLY_SET_GLYPH_CODE("ConfigsTools.automatically_set_glyph_code"),
     MERGE_FONTS("Pack.import.merge_font_files"),
     AUTO_UPDATE_ITEMS("ItemUpdater.auto_update_items"),
+    OVERRIDE_LORE("ItemUpdater.override_lore"),
+    UPDATE_FURNITURE_ON_RELOAD("ItemUpdater.update_furniture_on_reload"),
+    UPDATE_FURNITURE_ON_LOAD("ItemUpdater.update_furniture_on_load"),
+    FURNITURE_UPDATE_DELAY("ItemUpdater.furniture_update_delay_in_seconds"),
     ;
 
     private final String path;

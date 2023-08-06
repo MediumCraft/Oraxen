@@ -1,16 +1,14 @@
 package io.th0rgal.oraxen.items;
 
-import com.jeff_media.customblockdata.CustomBlockData;
 import com.jeff_media.morepersistentdatatypes.DataType;
-import io.th0rgal.oraxen.OraxenPlugin;
-import io.th0rgal.oraxen.api.OraxenFurniture;
+import com.jeff_media.persistentdataserializer.PersistentDataSerializer;
 import io.th0rgal.oraxen.api.OraxenItems;
 import io.th0rgal.oraxen.config.Settings;
 import io.th0rgal.oraxen.utils.AdventureUtils;
 import io.th0rgal.oraxen.utils.Utils;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -19,7 +17,6 @@ import org.bukkit.event.enchantment.PrepareItemEnchantEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.Damageable;
@@ -28,10 +25,7 @@ import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -39,26 +33,6 @@ import java.util.Optional;
 import static io.th0rgal.oraxen.items.ItemBuilder.ORIGINAL_NAME_KEY;
 
 public class ItemUpdater implements Listener {
-
-    public ItemUpdater() {
-        if (furnitureUpdateTask != null) furnitureUpdateTask.cancel();
-        furnitureUpdateTask = new FurnitureUpdateTask();
-        int delay = (Settings.FURNITURE_UPDATE_DELAY.getValue() instanceof Integer integer) ? integer : 5;
-        furnitureUpdateTask.runTaskTimer(OraxenPlugin.get(), 0, delay * 20L);
-    }
-
-    public static HashSet<Entity> furnitureToUpdate = new HashSet<>();
-    public static FurnitureUpdateTask furnitureUpdateTask;
-    public static class FurnitureUpdateTask extends BukkitRunnable {
-
-        @Override
-        public void run() {
-            for (Entity entity : new HashSet<>(furnitureToUpdate)) {
-                OraxenFurniture.updateFurniture(entity);
-                furnitureToUpdate.remove(entity);
-            }
-        }
-    }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
@@ -82,16 +56,6 @@ public class ItemUpdater implements Listener {
         ItemStack newItem = ItemUpdater.updateItem(oldItem);
         if (oldItem.equals(newItem)) return;
         event.getItem().setItemStack(newItem);
-    }
-
-    @EventHandler
-    public void onEntityLoad(EntitiesLoadEvent event) {
-        if (!Settings.UPDATE_ITEMS.toBool()) return;
-        if (!Settings.UPDATE_FURNITURE_ON_LOAD.toBool()) return;
-
-        for (Entity entity : event.getEntities())
-            if (OraxenFurniture.isFurniture(entity))
-                ItemUpdater.furnitureToUpdate.add(entity);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -120,7 +84,6 @@ public class ItemUpdater implements Listener {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static ItemStack updateItem(ItemStack oldItem) {
         String id = OraxenItems.getIdByItem(oldItem);
         if (id == null) return oldItem;
@@ -142,12 +105,8 @@ public class ItemUpdater implements Listener {
             PersistentDataContainer oldPdc = oldMeta.getPersistentDataContainer();
             PersistentDataContainer itemPdc = itemMeta.getPersistentDataContainer();
 
-            // Transfer over all PDC entries - Uses method from JeffLib through CustomBlockData
-            for (NamespacedKey key : oldPdc.getKeys()) {
-                PersistentDataType dataType = CustomBlockData.getDataType(oldPdc, key);
-                Object pdcValue = oldPdc.get(key, dataType);
-                if (pdcValue != null) itemPdc.set(key, dataType, pdcValue);
-            }
+            // Transfer over all PDC entries from oldItem to newItem
+            PersistentDataSerializer.fromMapList(PersistentDataSerializer.toMapList(oldPdc), itemPdc);
 
             // Add all enchantments from oldItem and add all from newItem aslong as it is not the same Enchantments
             for (Map.Entry<Enchantment, Integer> entry : oldMeta.getEnchants().entrySet())
@@ -158,8 +117,8 @@ public class ItemUpdater implements Listener {
             int cmd = newMeta.hasCustomModelData() ? newMeta.getCustomModelData() : oldMeta.hasCustomModelData() ? oldMeta.getCustomModelData() : 0;
             itemMeta.setCustomModelData(cmd);
 
-            // Lore might be changable ingame, but I think it is safe to just set it to new
-            if (Settings.OVERRIDE_LORE.toBool()) itemMeta.setLore(newMeta.getLore());
+            // If OraxenItem has no lore, we should assume that 3rd-party plugin has added lore
+            if (Settings.OVERRIDE_ITEM_LORE.toBool()) itemMeta.setLore(newMeta.getLore());
             else itemMeta.setLore(oldMeta.getLore());
 
             // Attribute modifiers are only changable via config so no reason to check old
@@ -170,8 +129,15 @@ public class ItemUpdater implements Listener {
                 damageable.setDamage(oldDmg.getDamage());
             }
 
-            if (itemMeta instanceof LeatherArmorMeta leatherMeta && oldMeta instanceof LeatherArmorMeta oldLeatherMeta) {
-                leatherMeta.setColor(oldLeatherMeta.getColor());
+            if (itemMeta instanceof LeatherArmorMeta leatherMeta && oldMeta instanceof LeatherArmorMeta oldLeatherMeta && newMeta instanceof LeatherArmorMeta newLeatherMeta) {
+                // If it is not custom armor, keep color
+                if (oldItem.getType() == Material.LEATHER_HORSE_ARMOR) leatherMeta.setColor(oldLeatherMeta.getColor());
+                // If it is custom armor we use newLeatherMeta color, since the builder would have been altered
+                // in the process of creating the shader images. Then we just save the builder to update the config
+                else {
+                    leatherMeta.setColor(newLeatherMeta.getColor());
+                    newItemBuilder.get().save();
+                }
             }
 
             if (itemMeta instanceof PotionMeta potionMeta && oldMeta instanceof PotionMeta oldPotionMeta) {
@@ -194,6 +160,7 @@ public class ItemUpdater implements Listener {
             }
             itemPdc.set(ORIGINAL_NAME_KEY, DataType.STRING, newMeta.getDisplayName());
         });
+
         return newItem;
     }
 

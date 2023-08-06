@@ -19,10 +19,10 @@ import io.th0rgal.oraxen.items.OraxenMeta;
 import io.th0rgal.oraxen.sound.CustomSound;
 import io.th0rgal.oraxen.sound.SoundManager;
 import io.th0rgal.oraxen.utils.AdventureUtils;
-import io.th0rgal.oraxen.utils.CustomArmorsTextures;
 import io.th0rgal.oraxen.utils.Utils;
 import io.th0rgal.oraxen.utils.VirtualFile;
 import io.th0rgal.oraxen.utils.ZipUtils;
+import io.th0rgal.oraxen.utils.customarmor.CustomArmorsTextures;
 import io.th0rgal.oraxen.utils.logs.Logs;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -57,8 +56,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class ResourcePack {
-
-    private static final String SHADER_PARAMETER_PLACEHOLDER = "{#TEXTURE_RESOLUTION#}";
 
     private Map<String, Collection<Consumer<File>>> packModifiers;
     private static Map<String, VirtualFile> outputFiles;
@@ -92,14 +89,12 @@ public class ResourcePack {
         File optifineFolder = new File(packFolder, "optifine");
         File langFolder = new File(packFolder, "lang");
         File textureFolder = new File(packFolder, "textures");
-        File shaderFolder = new File(packFolder, "shaders");
         File soundFolder = new File(packFolder, "sounds");
 
         if (Settings.GENERATE_DEFAULT_ASSETS.toBool())
-            extractFolders(!modelsFolder.exists(), !textureFolder.exists(),
-                    !shaderFolder.exists(), !langFolder.exists(), !fontFolder.exists(),
+            extractFolders(!modelsFolder.exists(), !textureFolder.exists(), !langFolder.exists(), !fontFolder.exists(),
                     !soundFolder.exists(), !assetsFolder.exists(), !optifineFolder.exists());
-        else extractRequired();
+        extractRequired();
 
         if (!Settings.GENERATE.toBool()) return;
 
@@ -122,6 +117,7 @@ public class ResourcePack {
         generateFont(fontManager);
         if (Settings.GESTURES_ENABLED.toBool()) generateGestureFiles();
         if (Settings.HIDE_SCOREBOARD_NUMBERS.toBool()) generateScoreboardFiles();
+        if (Settings.GENERATE_ARMOR_SHADER_FILES.toBool()) CustomArmorsTextures.generateArmorShaderFiles();
 
         for (final Collection<Consumer<File>> packModifiers : packModifiers.values())
             for (Consumer<File> packModifier : packModifiers)
@@ -303,9 +299,9 @@ public class ResourcePack {
         return "assets/" + namespace + "/textures/" + texturePath;
     }
 
-    private void extractFolders(boolean extractModels, boolean extractTextures, boolean extractShaders,
+    private void extractFolders(boolean extractModels, boolean extractTextures,
                                 boolean extractLang, boolean extractFonts, boolean extractSounds, boolean extractAssets, boolean extractOptifine) {
-        if (!extractModels && !extractTextures && !extractShaders && !extractLang && !extractAssets && !extractOptifine && !extractFonts && !extractSounds)
+        if (!extractModels && !extractTextures && !extractLang && !extractAssets && !extractOptifine && !extractFonts && !extractSounds)
             return;
 
         final ZipInputStream zip = ResourcesManager.browse();
@@ -313,7 +309,7 @@ public class ResourcePack {
             ZipEntry entry = zip.getNextEntry();
             final ResourcesManager resourcesManager = new ResourcesManager(OraxenPlugin.get());
             while (entry != null) {
-                extract(entry, extractModels, extractTextures, extractShaders,
+                extract(entry, extractModels, extractTextures,
                         extractLang, extractFonts, extractSounds, extractAssets, extractOptifine, resourcesManager);
                 entry = zip.getNextEntry();
             }
@@ -330,8 +326,8 @@ public class ResourcePack {
             ZipEntry entry = zip.getNextEntry();
             final ResourcesManager resourcesManager = new ResourcesManager(OraxenPlugin.get());
             while (entry != null) {
-                if (entry.getName().startsWith("pack/textures/required") || entry.getName().startsWith("pack/models/required")) {
-                    resourcesManager.extractFileIfTrue(entry, entry.getName(), true);
+                if (entry.getName().startsWith("pack/textures/models/armor/leather_layer_") || entry.getName().startsWith("pack/textures/required") || entry.getName().startsWith("pack/models/required")) {
+                    resourcesManager.extractFileIfTrue(entry, !OraxenPlugin.get().getDataFolder().toPath().resolve(entry.getName()).toFile().exists());
                 }
                 entry = zip.getNextEntry();
             }
@@ -343,19 +339,18 @@ public class ResourcePack {
     }
 
     private void extract(ZipEntry entry, boolean extractModels, boolean extractTextures,
-                         boolean extractShaders, boolean extractLang, boolean extractFonts,
+                         boolean extractLang, boolean extractFonts,
                          boolean extractSounds, boolean extractAssets,
                          boolean extractOptifine, ResourcesManager resourcesManager) {
         final String name = entry.getName();
         final boolean isSuitable = (extractModels && name.startsWith("pack/models"))
                 || (extractTextures && name.startsWith("pack/textures"))
-                || (extractShaders && name.startsWith("pack/shaders"))
                 || (extractLang && name.startsWith("pack/lang"))
                 || (extractFonts && name.startsWith("pack/font"))
                 || (extractSounds && name.startsWith("pack/sounds"))
                 || (extractAssets && name.startsWith("/pack/assets"))
                 || (extractOptifine && name.startsWith("pack/optifine"));
-        resourcesManager.extractFileIfTrue(entry, name, isSuitable);
+        resourcesManager.extractFileIfTrue(entry, isSuitable);
     }
 
     private Map<Material, List<ItemBuilder>> extractTexturedItems() {
@@ -532,8 +527,8 @@ public class ResourcePack {
     }
 
     public static void writeStringToVirtual(String folder, String name, String content) {
-        addOutputFiles(new VirtualFile(folder, name,
-                new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8))));
+        folder = !folder.endsWith("/") ? folder : folder.substring(0, folder.length() - 1);
+        addOutputFiles(new VirtualFile(folder, name, new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8))));
     }
 
     private void getAllFiles(final File directory, final Collection<VirtualFile> fileList,
@@ -562,7 +557,6 @@ public class ResourcePack {
         try {
             final InputStream fis;
             if (file.getName().endsWith(".json")) fis = processJsonFile(file);
-            else if (file.getName().endsWith(".fsh")) fis = processShaderFile(file);
             else if (customArmorsTextures.registerImage(file)) return;
             else fis = new FileInputStream(file);
 
@@ -608,13 +602,6 @@ public class ResourcePack {
             return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
         }
         return newStream;
-    }
-
-    private InputStream processShaderFile(File file) throws IOException {
-        String content = Files.readString(Path.of(file.getPath()), StandardCharsets.UTF_8);
-        content = content.replace(
-                SHADER_PARAMETER_PLACEHOLDER, String.valueOf((int) Settings.ARMOR_RESOLUTION.getValue()));
-        return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }
 
     private String getZipFilePath(String path, String newFolder) throws IOException {

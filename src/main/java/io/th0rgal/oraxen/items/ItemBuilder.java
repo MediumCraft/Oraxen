@@ -4,8 +4,11 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.jeff_media.morepersistentdatatypes.DataType;
 import io.th0rgal.oraxen.OraxenPlugin;
+import io.th0rgal.oraxen.api.OraxenItems;
 import io.th0rgal.oraxen.compatibilities.provided.mmoitems.WrappedMMOItem;
 import io.th0rgal.oraxen.compatibilities.provided.mythiccrucible.WrappedCrucibleItem;
+import io.th0rgal.oraxen.config.Settings;
+import io.th0rgal.oraxen.utils.OraxenYaml;
 import org.bukkit.Color;
 import org.bukkit.DyeColor;
 import org.bukkit.FireworkEffect;
@@ -14,6 +17,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.TropicalFish;
 import org.bukkit.inventory.ItemFlag;
@@ -30,7 +34,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionData;
 import org.bukkit.potion.PotionEffect;
-
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -192,6 +196,14 @@ public class ItemBuilder {
     public ItemBuilder setDurability(final int durability) {
         this.durability = durability;
         return this;
+    }
+
+    /**
+     * Check if the ItemBuilder has color.
+     * @return true if the ItemBuilder has color that is not default LeatherMetaColor
+     */
+    public boolean hasColor() {
+        return color != null && !color.equals(Color.fromRGB(160, 101, 64));
     }
 
     public Color getColor() {
@@ -373,6 +385,20 @@ public class ItemBuilder {
         finalItemStack = itemStack;
 
         return this;
+    }
+
+    public void save() {
+        regen();
+        OraxenItems.getMap().entrySet().stream().filter(entry -> entry.getValue().containsValue(this)).findFirst().ifPresent(entry -> {
+            YamlConfiguration yamlConfiguration = OraxenYaml.loadConfiguration(entry.getKey());
+            String color = this.color.getRed() + "," + this.color.getGreen() + "," + this.color.getBlue();
+            yamlConfiguration.set(OraxenItems.getIdByItem(this.build()) + ".color", color);
+            try {
+                yamlConfiguration.save(entry.getKey());
+            } catch (IOException e) {
+                if (Settings.DEBUG.toBool()) e.printStackTrace();
+            }
+        });
     }
 
     private ItemMeta handleVariousMeta(ItemMeta itemMeta) {
