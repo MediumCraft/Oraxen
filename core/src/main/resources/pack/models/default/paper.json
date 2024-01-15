@@ -1,0 +1,245 @@
+{
+  "textures": {},
+  "overrides": [
+    {
+      "predicate": {
+        "custom_model_data": 1000
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1001
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1002
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1003
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1004
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1005
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1006
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1007
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1008
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1009
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1010
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1011
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1012
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1013
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1014
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1015
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1016
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1017
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1018
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1019
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1020
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1021
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1022
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1023
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1024
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1025
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1026
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1027
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1028
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1029
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1030
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1031
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1032
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1033
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1034
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1035
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1036
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1037
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1038
+      },
+      "model": ""
+    },
+    {
+      "predicate": {
+        "custom_model_data": 1039
+      },
+      "model": ""
+    }
+  ]
+}
