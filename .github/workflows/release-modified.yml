@@ -49,6 +49,16 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
         continue-on-error: true
+
+      - name: Archive Repository
+        run: |
+          # Create a zip file of the entire repository contents
+          zip -r dev_env.zip .
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Oraxen-v${{ steps.plugin_version.outputs.version }}
+          path: dev_env.zip
       
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
@@ -62,6 +72,7 @@ jobs:
           token: ${{ secrets.RELEASE_KEY }}
           files: |
             build/libs/*.jar
+            dev_env.zip
           tag_name: v${{ steps.plugin_version.outputs.version }}-${{ steps.short_sha.outputs.sha_short }}
           name: Oraxen v${{ steps.plugin_version.outputs.version }}
           body: |
@@ -70,12 +81,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_REPOSITORY: MediumCraft/Oraxen
-      
-      # Use way better stuff
-      #- name: Create GitHub Release
-        #uses: marvinpinto/action-automatic-releases@latest
-        #with:
-          #repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          #prerelease: false
-          #automatic_release_tag: ${{ steps.plugin_version.outputs.version }}
-          #title: ${{ steps.plugin_version.outputs.version }}
