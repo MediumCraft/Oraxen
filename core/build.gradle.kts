@@ -8,7 +8,7 @@ plugins {
 
 val pluginVersion = project.property("pluginVersion") as String
 tasks {
-    publish.get().dependsOn(shadowJar)
+    //publish.get().dependsOn(shadowJar)
     shadowJar.get().archiveFileName.set("oraxen-${pluginVersion}.jar")
     build.get().dependsOn(shadowJar)
 }
