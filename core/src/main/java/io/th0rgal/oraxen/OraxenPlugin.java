@@ -45,6 +45,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.jar.JarFile;
 
 public class OraxenPlugin extends JavaPlugin {
@@ -88,6 +89,27 @@ public class OraxenPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        try (InputStream stream = this.getResource("notes")) {
+            if (stream != null && stream.available() > 0) {
+                
+            } else {
+                getPluginLoader().disablePlugin(this);
+                return;
+            }
+        } catch (Exception exception1) {
+            try (InputStream stream = this.getResource("notes.txt")) {
+                if (stream != null && stream.available() > 0) {
+
+                } else {
+                getPluginLoader().disablePlugin(this);
+                return; 
+                }
+            } catch (Exception exception2) {
+                getPluginLoader().disablePlugin(this);
+                return;
+            }
+        }
+
         CommandAPI.onEnable();
         ProtectionLib.init(this);
         if (!VersionUtil.atOrAbove("1.20.3")) PlayerAnimatorImpl.initialize(this);
