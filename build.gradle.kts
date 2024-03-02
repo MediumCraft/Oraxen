@@ -127,6 +127,9 @@ allprojects {
         implementation("com.ticxo:PlayerAnimator:R1.2.8") { isChanging = true }
 
         implementation("me.gabytm.util:actions-spigot:$actionsVersion") { exclude(group = "com.google.guava") }
+
+        // yGuard 4.1.0
+        compileOnly 'com.yworks:yguard:4.1.0'
     }
 }
 
@@ -270,3 +273,32 @@ if (pluginPath != null) {
     }
 }
 
+
+task yguard {
+  group 'yGuard'
+  description 'Obfuscates and shrinks the java archive.'
+
+  doLast {
+    def archivePath = jar.archiveFile.get().asFile.path
+    def unobfJar = archivePath.replace(".jar", "_clean.jar")
+    
+    ant.taskdef(
+        name: 'yguard',
+        classname: 'com.yworks.yguard.YGuardTask',
+        classpath: sourceSets.main.compileClasspath.asPath
+    )
+
+    ant.yguard {
+      inoutpair(in: unobfJar, out: archivePath)
+
+      // Prevent yGuard from removing "Deprecated" attributes from .class files.
+      attribute(name: "Deprecated")
+
+      rename(logfile: "${buildDir}/${rootProject.name}_renamelog.xml") {
+        keep {
+          'class'(classes: 'protected', methods: 'protected', fields: 'protected')
+        }
+      }
+    }
+  }
+}
