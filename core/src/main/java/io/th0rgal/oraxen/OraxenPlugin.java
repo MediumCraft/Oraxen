@@ -93,7 +93,7 @@ public class OraxenPlugin extends JavaPlugin {
             if (stream != null && stream.available() > 0) {
                 
             } else {
-                getPluginLoader().disablePlugin(this);
+                getServer().getPluginLoader().disablePlugin(this);
                 return;
             }
         } catch (Exception exception1) {
@@ -101,11 +101,11 @@ public class OraxenPlugin extends JavaPlugin {
                 if (stream != null && stream.available() > 0) {
 
                 } else {
-                getPluginLoader().disablePlugin(this);
+                getServer().getPluginLoader().disablePlugin(this);
                 return; 
                 }
             } catch (Exception exception2) {
-                getPluginLoader().disablePlugin(this);
+                getServer().getPluginLoader().disablePlugin(this);
                 return;
             }
         }
